@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>통합 요금 계산기 v9.0 Final</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --light-gray: #f8f9fa;
+            --border-color: #dee2e6;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --penalty-light-color: #fffbdd;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", helvetica, "Apple SD Gothic Neo", sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            background: #fff;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .header { text-align: center; padding-bottom: 20px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
+        .header h1 { font-size: 24px; color: var(--primary-color); margin: 0; }
+        .header p { margin-top: 5px; color: #6c757d; }
+
+        .calculator-form { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 40px; }
+        .form-section-title { grid-column: 1 / -1; margin: 20px 0 0 0; padding-bottom: 10px; border-bottom: 2px solid #e9ecef; color: #495057; font-size: 18px; }
+        .form-section-title:first-child { margin-top: 0; }
+        .input-group { display: flex; flex-direction: column; }
+        .input-group label { font-weight: 600; margin-bottom: 5px; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+        .input-group input, .input-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; box-sizing: border-box; }
+        
+        .multi-column-inputs { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px 20px; }
+        .multi-column-inputs .input-group label .carrier-logo { font-size: 12px; padding: 2px 6px; border-radius: 4px; color: white; }
+        .kt-logo { background-color: #ff6f00; }
+        .skt-logo { background-color: #e4002b; }
+        .lgu-logo { background-color: #d9006c; }
+        
+        .master-checkbox-group { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 10px; background-color: var(--penalty-light-color); border-radius: 5px; margin-top: 10px; }
+        .master-checkbox-group label { font-size: 15px; color: #555; margin: 0; }
+
+        .calculate-button { grid-column: 1 / -1; width: 100%; padding: 15px; font-size: 18px; font-weight: bold; color: #fff; background-color: var(--primary-color); border: none; border-radius: 5px; cursor: pointer; margin-top: 20px; transition: background-color 0.3s; }
+        .calculate-button:hover { background-color: #0056b3; }
+
+        .results-section { display: none; margin-top: 30px; padding-top: 20px; border-top: 2px solid var(--primary-color); }
+        #final-summary { border: 2px solid var(--success-color); background-color: var(--success-light-color); padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 30px; }
+        #final-summary h2 { margin-top: 0; font-size: 20px; color: var(--success-color); }
+        #final-summary p { margin-bottom: 0; font-size: 16px; }
+        
+        .result-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; background: #fff; display: flex; flex-direction: column; }
+        .card.best-choice { border-color: var(--success-color); box-shadow: 0 0 10px rgba(40, 167, 69, 0.2); }
+        .card h3 { margin-top: 0; color: var(--primary-color); border-bottom: 1px solid #eee; padding-bottom: 10px;}
+        .card p { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
+        .card .total { font-weight: bold; color: #d9534f; font-size: 16px; border-top: 1px solid #eee; padding-top:10px; margin-top: auto; }
+
+        .results-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 30px; }
+        .results-table th, .results-table td { border: 1px solid var(--border-color); padding: 12px; text-align: right; vertical-align: middle; }
+        .results-table thead { background-color: var(--light-gray); }
+        .results-table th { font-weight: 600; text-align: center; }
+        .results-table tbody tr:first-child { background-color: var(--success-light-color); font-weight: bold; }
+        .results-table td:first-child { text-align: left; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="header">
+            <h1>통합 요금 계산기 v9.0 Final</h1>
+            <p>위약금, 페널티, 필수 부가서비스까지 모두 비교하세요</p>
+        </header>
+
+        <form id="calculatorForm" class="calculator-form">
+            <h3 class="form-section-title">1. 성지 시세표 가격 입력 (실구매가)</h3>
+            <div class="multi-column-inputs">
+                <div class="input-group"><label><span class="kt-logo">KT</span>번호이동</label><input type="number" id="sise_kt_mnp" value="1150000"></div>
+                <div class="input-group"><label><span class="kt-logo">KT</span>기기변경</label><input type="number" id="sise_kt_upgrade" value="1080000"></div>
+                <div class="input-group"><label><span class="skt-logo">SKT</span>번호이동</label><input type="number" id="sise_skt_mnp" value="1150000"></div>
+                <div class="input-group"><label><span class="skt-logo">SKT</span>기기변경</label><input type="number" id="sise_skt_upgrade" value="1510000"></div>
+                <div class="input-group"><label><span class="lgu-logo">LGU+</span>번호이동</label><input type="number" id="sise_lgu_mnp" value="1120000"></div>
+                <div class="input-group"><label><span class="lgu-logo">LGU+</span>기기변경</label><input type="number" id="sise_lgu_upgrade" value="1340000"></div>
+            </div>
+
+            <h3 class="form-section-title">2. 공통 요금 조건 설정</h3>
+             <div class="input-group">
+                <label for="devicePrice">단말기 출고가</label>
+                <input type="number" id="devicePrice" value="2379300">
+            </div>
+             <div class="input-group">
+                <label for="cancellationFee">현재 약정 위약금 (발생 시)</label>
+                <input type="number" id="cancellationFee" value="146751" placeholder="위약금이 없다면 0으로 유지">
+            </div>
+            <div class="multi-column-inputs">
+                <div class="input-group"><label><span class="kt-logo">KT</span>초기 유지 요금제</label><input type="number" id="initialPlan_kt" value="109000"></div>
+                <div class="input-group"><label><span class="skt-logo">SKT</span>초기 유지 요금제</label><input type="number" id="initialPlan_skt" value="110000"></div>
+                <div class="input-group"><label><span class="lgu-logo">LGU+</span>초기 유지 요금제</label><input type="number" id="initialPlan_lgu" value="115000"></div>
+            </div>
+            <div class="input-group">
+                <label for="targetPlanFee">변경 후 요금제</label>
+                <input type="number" id="targetPlanFee" value="63000">
+            </div>
+            <div class="input-group">
+                <label for="initialPlanMonths">요금제 유지 기간 (개월)</label>
+                <input type="number" id="initialPlanMonths" value="6">
+            </div>
+            <div class="input-group">
+                <label for="installments">약정/할부 개월 수</label>
+                <select id="installments"><option value="24">24개월</option><option value="36">36개월</option></select>
+            </div>
+             <div class="input-group" style="flex-direction: row; align-items: center; gap: 10px; margin-top:10px;">
+                <input type="checkbox" id="lguFamilyDiscount" name="lguFamilyDiscount" checked>
+                <label for="lguFamilyDiscount" style="margin:0; font-weight:normal;">LGU+ 가족결합 적용 (월 6,600원 할인)</label>
+            </div>
+
+            <h3 class="form-section-title">3. 부가서비스 조건 설정</h3>
+            <div class="multi-column-inputs">
+                <div class="input-group"><label><span class="kt-logo">KT</span>부가서비스 금액</label><input type="number" id="vasFee_kt" value="71200"></div>
+                <div class="input-group"><label><span class="skt-logo">SKT</span>부가서비스 금액</label><input type="number" id="vasFee_skt" value="42800"></div>
+                <div class="input-group"><label><span class="lgu-logo">LGU+</span>부가서비스 금액</label><input type="number" id="vasFee_lgu" value="68190"></div>
+                <div class="input-group"><label><span class="kt-logo">KT</span>유지 기간(개월)</label><input type="number" id="vasMonths_kt" value="4"></div>
+                <div class="input-group"><label><span class="skt-logo">SKT</span>유지 기간(개월)</label><input type="number" id="vasMonths_skt" value="4"></div>
+                <div class="input-group"><label><span class="lgu-logo">LGU+</span>유지 기간(개월)</label><input type="number" id="vasMonths_lgu" value="4"></div>
+            </div>
+            
+            <div class="master-checkbox-group">
+                <input type="checkbox" id="calculateWithPenalty">
+                <label for="calculateWithPenalty">부가서비스 미가입 페널티 조건으로 계산 (아래 페널티가 단말기값에 추가됨)</label>
+            </div>
+            <div class="multi-column-inputs">
+                <div class="input-group"><label><span class="kt-logo">KT</span>미가입 페널티</label><input type="number" id="vasPenalty_kt" value="150000"></div>
+                <div class="input-group"><label><span class="skt-logo">SKT</span>미가입 페널티</label><input type="number" id="vasPenalty_skt" value="180000"></div>
+                <div class="input-group"><label><span class="lgu-logo">LGU+</span>미가입 페널티</label><input type="number" id="vasPenalty_lgu" value="130000"></div>
+            </div>
+             <div class="multi-column-inputs">
+                <div class="input-group"><label><span class="kt-logo">KT</span>필수 부가 금액</label><input type="number" id="penaltyVasFee_kt" value="38800"></div>
+                <div class="input-group"><label><span class="skt-logo">SKT</span>필수 부가 금액</label><input type="number" id="penaltyVasFee_skt" value="15400"></div>
+                <div class="input-group"><label><span class="lgu-logo">LGU+</span>필수 부가 금액</label><input type="number" id="penaltyVasFee_lgu" value="40190"></div>
+                <div class="input-group"><label><span class="kt-logo">KT</span>필수 유지(개월)</label><input type="number" id="penaltyVasMonths_kt" value="4"></div>
+                <div class="input-group"><label><span class="skt-logo">SKT</span>필수 유지(개월)</label><input type="number" id="penaltyVasMonths_skt" value="4"></div>
+                <div class="input-group"><label><span class="lgu-logo">LGU+</span>필수 유지(개월)</label><input type="number" id="penaltyVasMonths_lgu" value="4"></div>
+            </div>
+
+
+            <h3 class="form-section-title">4. 자급제 시나리오 조건</h3>
+            <div class="input-group">
+                <label for="unlockedDevicePrice">자급제 단말기 구매가</label>
+                <input type="number" id="unlockedDevicePrice" value="2259000">
+            </div>
+            <div class="input-group">
+                <label for="mvnoPlanFee">알뜰 요금제</label>
+                <input type="number" id="mvnoPlanFee" value="45000">
+            </div>
+            
+            <button type="submit" class="calculate-button">모든 시나리오 비교하기</button>
+        </form>
+        
+        <section id="resultsSection" class="results-section">
+            <div id="final-summary"></div>
+            <div class="result-cards"></div>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>구분</th>
+                        <th>단말기 실구매가</th>
+                        <th>총 통신요금</th>
+                        <th>총 납부액</th>
+                        <th>월 평균 납부액</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsTableBody"></tbody>
+            </table>
+        </section>
+    </div>
+
+    <script>
+        document.getElementById('calculatorForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            // --- 1. 입력 값 객체화 ---
+            const inputs = {
+                devicePrice: parseFloat(document.getElementById('devicePrice').value) || 0,
+                cancellationFee: parseFloat(document.getElementById('cancellationFee').value) || 0,
+                installments: parseInt(document.getElementById('installments').value) || 24,
+                initialPlan: {
+                    kt: parseFloat(document.getElementById('initialPlan_kt').value) || 0,
+                    skt: parseFloat(document.getElementById('initialPlan_skt').value) || 0,
+                    lgu: parseFloat(document.getElementById('initialPlan_lgu').value) || 0
+                },
+                targetPlanFee: parseFloat(document.getElementById('targetPlanFee').value) || 0,
+                initialPlanMonths: parseInt(document.getElementById('initialPlanMonths').value) || 0,
+                lguFamilyDiscountApplied: document.getElementById('lguFamilyDiscount').checked,
+                calculateWithPenalty: document.getElementById('calculateWithPenalty').checked,
+                vasFee: {
+                    kt: parseFloat(document.getElementById('vasFee_kt').value) || 0,
+                    skt: parseFloat(document.getElementById('vasFee_skt').value) || 0,
+                    lgu: parseFloat(document.getElementById('vasFee_lgu').value) || 0
+                },
+                vasMonths: {
+                    kt: parseInt(document.getElementById('vasMonths_kt').value) || 0,
+                    skt: parseInt(document.getElementById('vasMonths_skt').value) || 0,
+                    lgu: parseInt(document.getElementById('vasMonths_lgu').value) || 0
+                },
+                vasPenalty: {
+                    kt: parseFloat(document.getElementById('vasPenalty_kt').value) || 0,
+                    skt: parseFloat(document.getElementById('vasPenalty_skt').value) || 0,
+                    lgu: parseFloat(document.getElementById('vasPenalty_lgu').value) || 0
+                },
+                 penaltyVasFee: {
+                    kt: parseFloat(document.getElementById('penaltyVasFee_kt').value) || 0,
+                    skt: parseFloat(document.getElementById('penaltyVasFee_skt').value) || 0,
+                    lgu: parseFloat(document.getElementById('penaltyVasFee_lgu').value) || 0
+                },
+                penaltyVasMonths: {
+                    kt: parseInt(document.getElementById('penaltyVasMonths_kt').value) || 0,
+                    skt: parseInt(document.getElementById('penaltyVasMonths_skt').value) || 0,
+                    lgu: parseInt(document.getElementById('penaltyVasMonths_lgu').value) || 0
+                },
+                mvnoPlanFee: parseFloat(document.getElementById('mvnoPlanFee').value) || 0,
+                unlockedDevicePrice: parseFloat(document.getElementById('unlockedDevicePrice').value) || (parseFloat(document.getElementById('devicePrice').value) || 0),
+                sise: {
+                    kt_mnp: parseFloat(document.getElementById('sise_kt_mnp').value),
+                    kt_upgrade: parseFloat(document.getElementById('sise_kt_upgrade').value),
+                    skt_mnp: parseFloat(document.getElementById('sise_skt_mnp').value),
+                    skt_upgrade: parseFloat(document.getElementById('sise_skt_upgrade').value),
+                    lgu_mnp: parseFloat(document.getElementById('sise_lgu_mnp').value),
+                    lgu_upgrade: parseFloat(document.getElementById('sise_lgu_upgrade').value)
+                }
+            };
+
+            const formatCurrency = (num) => `${Math.round(num).toLocaleString('ko-KR')}원`;
+
+            // --- 2. 시나리오별 계산 로직 ---
+            const calculateTotalCommFee = (carrier, applyContractDiscount) => {
+                let totalFee = 0;
+                for (let i = 1; i <= inputs.installments; i++) {
+                    const initialFee = inputs.initialPlan[carrier] || 0;
+                    let currentPlan = (i <= inputs.initialPlanMonths) ? initialFee : inputs.targetPlanFee;
+                    
+                    let currentVas = 0;
+                    if (inputs.calculateWithPenalty) {
+                        const penaltyVasDuration = inputs.penaltyVasMonths[carrier] || 0;
+                        const penaltyVasFee = inputs.penaltyVasFee[carrier] || 0;
+                        if (i <= penaltyVasDuration) {
+                            currentVas = penaltyVasFee;
+                        }
+                    } else {
+                        const vasDuration = inputs.vasMonths[carrier] || 0;
+                        const vasFee = inputs.vasFee[carrier] || 0;
+                        if (i <= vasDuration) {
+                            currentVas = vasFee;
+                        }
+                    }
+
+                    if (carrier === 'lgu' && inputs.lguFamilyDiscountApplied) {
+                        currentPlan -= 6600;
+                    }
+                    currentPlan = Math.max(0, currentPlan);
+                    
+                    if (applyContractDiscount) {
+                        currentPlan *= 0.75;
+                    }
+                    totalFee += currentPlan + currentVas;
+                }
+                return totalFee;
+            };
+
+            const allResults = [];
+            
+            const scenarios = [
+                { name: 'KT 번호이동', type: 'sise', key: 'kt_mnp', carrier: 'kt' },
+                { name: 'KT 기기변경', type: 'sise', key: 'kt_upgrade', carrier: 'kt' },
+                { name: 'SKT 번호이동', type: 'sise', key: 'skt_mnp', carrier: 'skt' },
+                { name: 'SKT 기기변경', type: 'sise', key: 'skt_upgrade', carrier: 'skt' },
+                { name: 'LGU+ 번호이동', type: 'sise', key: 'lgu_mnp', carrier: 'lgu' },
+                { name: 'LGU+ 기기변경', type: 'sise', key: 'lgu_upgrade', carrier: 'lgu' },
+                { name: 'KT 선택약정', type: 'contract', carrier: 'kt' },
+                { name: 'SKT 선택약정', type: 'contract', carrier: 'skt' },
+                { name: 'LGU+ 선택약정', type: 'contract', carrier: 'lgu' },
+                { name: '자급제+알뜰폰', type: 'unlocked' }
+            ];
+
+            scenarios.forEach(sc => {
+                let deviceCost = 0, commCost = 0;
+                let carrier = sc.carrier || null;
+
+                if (sc.type === 'sise') {
+                    if (isNaN(inputs.sise[sc.key])) return;
+                    deviceCost = inputs.sise[sc.key];
+                    commCost = calculateTotalCommFee(carrier, false);
+                } else if (sc.type === 'contract') {
+                    deviceCost = inputs.devicePrice;
+                    commCost = calculateTotalCommFee(carrier, true);
+                } else if (sc.type === 'unlocked') {
+                    deviceCost = inputs.unlockedDevicePrice;
+                    commCost = inputs.mvnoPlanFee * inputs.installments;
+                }
+                
+                if (inputs.calculateWithPenalty && carrier) {
+                    deviceCost += inputs.vasPenalty[carrier] || 0;
+                }
+                
+                let total = deviceCost + commCost + inputs.cancellationFee;
+                allResults.push({ name: sc.name, deviceCost, commCost, cancellationFee: inputs.cancellationFee, total });
+            });
+
+            // --- 3. 결과 정렬 및 표시 ---
+            allResults.sort((a, b) => a.total - b.total);
+            const bestChoice = allResults.length > 0 ? allResults[0] : null;
+
+            if (bestChoice) {
+                let summaryHTML = `
+                    <h2>최적의 선택: ${bestChoice.name}</h2>
+                    <p>총 ${inputs.installments}개월간 ${formatCurrency(bestChoice.total)} 납부 (월평균 ${formatCurrency(bestChoice.total / inputs.installments)})</p>`;
+                if (inputs.cancellationFee > 0) {
+                    summaryHTML += `<small style="display:block; margin-top:5px;">(현재 위약금 ${formatCurrency(inputs.cancellationFee)} 포함된 총액)</small>`;
+                }
+                document.getElementById('final-summary').innerHTML = summaryHTML;
+            } else {
+                 document.getElementById('final-summary').innerHTML = '<h2>계산할 데이터가 없습니다. 시세 또는 자급제 정보를 입력해주세요.</h2>';
+            }
+            
+            const cardContainer = document.querySelector('.result-cards');
+            const tableBody = document.getElementById('resultsTableBody');
+            cardContainer.innerHTML = '';
+            tableBody.innerHTML = '';
+
+            allResults.forEach(res => {
+                // 카드 생성
+                const card = document.createElement('div');
+                card.className = 'card';
+                if (res.name === bestChoice.name) {
+                    card.classList.add('best-choice');
+                }
+                let cardHTML = `
+                    <h3>${res.name}</h3>
+                    <p><span>단말기 비용</span> <strong>${formatCurrency(res.deviceCost)}</strong></p>
+                    <p><span>총 통신/부가요금</span> <strong>${formatCurrency(res.commCost)}</strong></p>`;
+                if (res.cancellationFee > 0) {
+                     cardHTML += `<p><span>(+) 현재 위약금</span> <strong>${formatCurrency(res.cancellationFee)}</strong></p>`;
+                }
+                cardHTML += `<p class="total"><span>총 납부액</span> <strong>${formatCurrency(res.total)}</strong></p>`;
+                card.innerHTML = cardHTML;
+                cardContainer.appendChild(card);
+                
+                // 테이블 행 생성
+                tableBody.innerHTML += `
+                    <tr>
+                        <td>${res.name}</td>
+                        <td>${formatCurrency(res.deviceCost)}</td>
+                        <td>${formatCurrency(res.commCost)}</td>
+                        <td>${formatCurrency(res.total)}</td>
+                        <td>${formatCurrency(res.total / inputs.installments)}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('resultsSection').style.display = 'block';
+            window.scrollTo({ top: document.getElementById('calculatorForm').offsetHeight, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>
